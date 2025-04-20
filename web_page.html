@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CipherX</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        select, input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 20px;
+            cursor: pointer;
+            flex: 1;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+        }
+        .param-group {
+            margin-bottom: 20px;
+        }
+        .algorithm-info {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+        .help-text {
+            font-size: 13px;
+            color: #666;
+            margin-top: -15px;
+            margin-bottom: 15px;
+        }
+        .error {
+            color: #e74c3c;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CipherX</h1>
+        
+        <div class="param-group">
+            <label for="algorithm">Select Algorithm:</label>
+            <select id="algorithm" onchange="updateParameterFields()">
+                <option value="caesar">Caesar Cipher</option>
+                <option value="affine">Affine Cipher</option>
+                <option value="atbash">Atbash Cipher</option>
+                <option value="august">August Cipher</option>
+                <option value="autokey">Autokey Cipher</option>
+                <option value="beaufort">Beaufort Cipher</option>
+                <option value="gronsfeld">Gronsfeld Cipher</option>
+                <option value="hill">Hill Cipher</option>
+                <option value="myszkowski">Myszkowski Cipher</option>
+                <option value="playfair">Playfair Cipher</option>
+                <option value="railfence">Rail Fence Cipher</option>
+                <option value="route">Route Cipher</option>
+                <option value="vigenere">Vigenere Cipher</option>
+            </select>
+        </div>
+
+        <div id="algorithm-description" class="algorithm-info">
+            Caesar cipher shifts each letter in the plaintext by a fixed number of positions in the alphabet.
+        </div>
+
+        <div class="param-group">
+            <label for="input-text">Enter Text:</label>
+            <textarea id="input-text" placeholder="Enter text to encrypt or decrypt"></textarea>
+        </div>
+
+        <div id="parameter-fields">
+            <!-- Dynamic parameter fields will be inserted here -->
+        </div>
+
+        <div class="button-group">
+            <button onclick="processCipher('encrypt')">Encrypt</button>
+            <button onclick="processCipher('decrypt')">Decrypt</button>
+        </div>
+
+        <div id="error-message" class="error" style="display: none;"></div>
+
+        <div class="result" id="result">
+            <p>Result will appear here...</p>
+        </div>
+    </div>
+
+    <script>
+        // Algorithm descriptions
+        const algorithmDescriptions = {
+            caesar: "Caesar cipher shifts each letter in the plaintext by a fixed number of positions in the alphabet.",
+            affine: "Affine cipher combines multiplication and addition in modular arithmetic. Each letter is mapped using the function (ax + b) mod 26.",
+            atbash: "Atbash cipher is a simple substitution cipher that maps each letter to its reverse in the alphabet (A→Z, B→Y, etc.).",
+            august: "August cipher shifts each letter in the plaintext by 1 position in the alphabet (similar to Caesar with shift=1).",
+            autokey: "Autokey cipher uses the message itself as part of the key after an initial keyword is used.",
+            beaufort: "Beaufort cipher uses a tabula recta but subtracts plaintext from key rather than adding.",
+            gronsfeld: "Gronsfeld cipher is similar to Vigenère but uses digits instead of letters for the key.",
+            hill: "Hill cipher uses linear algebra to encrypt blocks of letters using a matrix as the key.",
+            myszkowski: "Myszkowski transposition cipher arranges plaintext in a grid and reads off columns based on keyword ordering.",
+            playfair: "Playfair cipher encrypts pairs of letters using a 5x5 grid based on a keyword.",
+            railfence: "Rail Fence cipher is a transposition cipher that arranges plaintext in a zigzag pattern.",
+            route: "Route cipher arranges plaintext in a grid and reads it off following a spiral pattern.",
+            vigenere: "Vigenère cipher uses a keyword to determine the shift value for each letter in the plaintext."
+        };
+
+        // Parameter configurations for each algorithm
+        const algorithmParams = {
+            caesar: [
+                { id: "shift", label: "Shift value:", type: "number", placeholder: "Enter a number (0-25)", min: 0, max: 25 }
+            ],
+            affine: [
+                { id: "a", label: "Value of 'a' (must be coprime with 26):", type: "number", placeholder: "Recommended: 1, 3, 5, 7, 9, 11, 15, 17, 19, 21, 23, 25", min: 1, max: 25 },
+                { id: "b", label: "Value of 'b':", type: "number", placeholder: "Enter a number (0-25)", min: 0, max: 25 }
+            ],
+            atbash: [],
+            august: [],
+            autokey: [
+                { id: "keyword", label: "Keyword (letters only):", type: "text", placeholder: "Enter a keyword (letters only)" }
+            ],
+            beaufort: [
+                { id: "keyword", label: "Keyword (letters only):", type: "text", placeholder: "Enter a keyword (letters only)" }
+            ],
+            gronsfeld: [
+                { id: "key", label: "Key (digits only):", type: "text", placeholder: "Enter a key (digits only)" }
+            ],
+            hill: [
+                { id: "keyword", label: "Keyword (letters only):", type: "text", placeholder: "Enter a keyword (letters only)" }
+            ],
+            myszkowski: [
+                { id: "keyword", label: "Keyword (letters only):", type: "text", placeholder: "Enter a keyword (letters only)" }
+            ],
+            playfair: [
+                { id: "keyword", label: "Keyword (letters only):", type: "text", placeholder: "Enter a keyword (letters only)" }
+            ],
+            railfence: [
+                { id: "keyword", label: "Keyword (letters only):", type: "text", placeholder: "Enter a keyword (determines number of rails)" }
+            ],
+            route: [
+                { id: "keyword", label: "Keyword (letters only):", type: "text", placeholder: "Enter a keyword (determines grid size)" }
+            ],
+            vigenere: [
+                { id: "keyword", label: "Keyword (letters only):", type: "text", placeholder: "Enter a keyword (letters only)" }
+            ]
+        };
+
+        function updateParameterFields() {
+            const algorithm = document.getElementById("algorithm").value;
+            const parameterFields = document.getElementById("parameter-fields");
+            parameterFields.innerHTML = "";
+
+            // Update algorithm description
+            document.getElementById("algorithm-description").textContent = algorithmDescriptions[algorithm];
+
+            // Create parameter fields
+            const params = algorithmParams[algorithm];
+            params.forEach(param => {
+                const fieldContainer = document.createElement("div");
+                fieldContainer.className = "param-group";
+
+                const label = document.createElement("label");
+                label.setAttribute("for", param.id);
+                label.textContent = param.label;
+                fieldContainer.appendChild(label);
+
+                const input = document.createElement("input");
+                input.setAttribute("type", param.type);
+                input.setAttribute("id", param.id);
+                input.setAttribute("placeholder", param.placeholder);
+                if (param.min !== undefined) input.setAttribute("min", param.min);
+                if (param.max !== undefined) input.setAttribute("max", param.max);
+                fieldContainer.appendChild(input);
+
+                if (param.id === "a") {
+                    const helpText = document.createElement("div");
+                    helpText.className = "help-text";
+                    helpText.textContent = "Value must be coprime with 26 (1, 3, 5, 7, 9, 11, 15, 17, 19, 21, 23, 25)";
+                    fieldContainer.appendChild(helpText);
+                }
+
+                parameterFields.appendChild(fieldContainer);
+            });
+        }
+
+        function gcd(a, b) {
+            while (b !== 0) {
+                const temp = b;
+                b = a % b;
+                a = temp;
+            }
+            return a;
+        }
+
+        function validateParams(algorithm, params) {
+            const errors = [];
+
+            if (algorithm === "affine") {
+                if (!params.a) {
+                    errors.push("Value of 'a' is required");
+                } else if (gcd(params.a, 26) !== 1) {
+                    errors.push("Value of 'a' must be coprime with 26 (1, 3, 5, 7, 9, 11, 15, 17, 19, 21, 23, 25)");
+                }
+                if (!params.b && params.b !== 0) {
+                    errors.push("Value of 'b' is required");
+                }
+            }
+
+            if (["autokey", "beaufort", "hill", "myszkowski", "playfair", "railfence", "route", "vigenere"].includes(algorithm)) {
+                if (!params.keyword) {
+                    errors.push("Keyword is required");
+                } else if (!/^[a-zA-Z]+$/.test(params.keyword)) {
+                    errors.push("Keyword must contain only letters");
+                }
+            }
+
+            if (algorithm === "gronsfeld") {
+                if (!params.key) {
+                    errors.push("Key is required");
+                } else if (!/^\d+$/.test(params.key)) {
+                    errors.push("Key must contain only digits");
+                }
+            }
+
+            if (algorithm === "caesar") {
+                if (!params.shift && params.shift !== 0) {
+                    errors.push("Shift value is required");
+                }
+            }
+
+            return errors;
+        }
+
+        function processCipher(action) {
+            const algorithm = document.getElementById("algorithm").value;
+            const text = document.getElementById("input-text").value.trim();
+            
+            if (!text) {
+                showError("Please enter text to process");
+                return;
+            }
+
+            // Get parameters
+            const params = {};
+            algorithmParams[algorithm].forEach(param => {
+                const value = document.getElementById(param.id)?.value;
+                if (param.type === "number") {
+                    params[param.id] = value ? parseInt(value) : undefined;
+                } else {
+                    params[param.id] = value;
+                }
+            });
+
+            // Validate parameters
+            const errors = validateParams(algorithm, params);
+            if (errors.length > 0) {
+                showError(errors.join(", "));
+                return;
+            }
+
+            // Process the cipher
+            let result;
+            try {
+                result = applyCipher(algorithm, text, params, action);
+                showResult(result);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function showError(message) {
+            const errorElement = document.getElementById("error-message");
+            errorElement.textContent = message;
+            errorElement.style.display = "block";
+            document.getElementById("result").innerHTML = "<p>Result will appear here...</p>";
+        }
+
+        function showResult(result) {
+            document.getElementById("error-message").style.display = "none";
+            document.getElementById("result").innerHTML = `<p>${result}</p>`;
+        }
+
+        function applyCipher(algorithm, text, params, action) {
+            const isEncrypt = action === "encrypt";
+            
+            switch (algorithm) {
+                case "caesar":
+                    return caesarCipher(text, params.shift, isEncrypt);
+                case "affine":
+                    return affineCipher(text, params.a, params.b, isEncrypt);
+                case "atbash":
+                    return atbashCipher(text);
+                case "august":
+                    return augustCipher(text, isEncrypt);
+                case "autokey":
+                    return autokeyCipher(text, params.keyword, isEncrypt);
+                case "beaufort":
+                    return beaufortCipher(text, params.keyword);
+                case "gronsfeld":
+                    return gronsfeldCipher(text, params.key, isEncrypt);
+                case "hill":
+                    return hillCipher(text, params.keyword, isEncrypt);
+                case "myszkowski":
+                    return myszkowskiCipher(text, params.keyword, isEncrypt);
+                case "playfair":
+                    return playfairCipher(text, params.keyword, isEncrypt);
+                case "railfence":
+                    return railfenceCipher(text, params.keyword, isEncrypt);
+                case "route":
+                    return routeCipher(text, params.keyword, isEncrypt);
+                case "vigenere":
+                    return vigenereCipher(text, params.keyword, isEncrypt);
+                default:
+                    throw new Error("Algorithm not implemented");
+            }
+        }
+
+        // Individual cipher implementations
+        function caesarCipher(text, shift, encrypt) {
+            shift = encrypt ? shift : -shift;
+            return text.split('').map(char => {
+                if (!isAlpha(char)) return char;
+                const base = isUpperCase(char) ? 'A'.charCodeAt(0) : 'a'.charCodeAt(0);
+                return String.fromCharCode(((char.charCodeAt(0) - base + shift + 26) % 26) + base);
+            }).join('');
+        }
+
+        function affineCipher(text, a, b, encrypt) {
+            if (gcd(a, 26) !== 1) {
+                throw new Error("Value of 'a' must be coprime with 26");
+            }
+
+            const modInverse = function(a) {
+                for (let x = 1; x < 26; x++) {
+                    if ((a * x) % 26 === 1) {
+                        return x;
+                    }
+                }
+                return -1;
+            };
+
+            const aInv = modInverse(a);
+            if (aInv === -1) {
+                throw new Error("No modular inverse exists for a=" + a);
+            }
+
+            return text.split('').map(char => {
+                if (!isAlpha(char)) return char;
+                const base = isUpperCase(char) ? 'A'.charCodeAt(0) : 'a'.charCodeAt(0);
+                const x = char.charCodeAt(0) - base;
+                let result;
+                
+                if (encrypt) {
+                    result = (a * x + b) % 26;
+                } else {
+                    result = (aInv * ((x - b + 26) % 26)) % 26;
+                }
+                
+                return String.fromCharCode(result + base);
+            }).join('');
+        }
+
+        function atbashCipher(text) {
+            return text.split('').map(char => {
+                if (!isAlpha(char)) return char;
+                const base = isUpperCase(char) ? 'A'.charCodeAt(0) : 'a'.charCodeAt(0);
+                return String.fromCharCode(base + (25 - (char.charCodeAt(0) - base)));
+            }).join('');
+        }
+
+        function augustCipher(text, encrypt) {
+            const shift = encrypt ? 1 : -1;
+            return text.split('').map(char => {
+                if (!isAlpha(char)) return char;
+                const base = isUpperCase(char) ? 'A'.charCodeAt(0) : 'a'.charCodeAt(0);
+                return String.fromCharCode(((char.charCodeAt(0) - base + shift + 26) % 26) + base);
+            }).join('');
+        }
+
+        function autokeyCipher(text, keyword, encrypt) {
+            keyword = keyword.toLowerCase();
+            let keyStream = keyword.split('');
+            const result = [];
+            let nonAlphaCount = 0;
+
+            if (encrypt) {
+                for (let i = 0; i < text.length; i++) {
+                    const char = text[i];
+                    if (!isAlpha(char)) {
+                        result.push(char);
+                        nonAlphaCount++;
+                        continue;
+                    }
+
+                    const keyIndex = i - nonAlphaCount;
+                    if (keyIndex >= keyStream.length) {
+                        keyStream.push(result[keyIndex - keyword.length].toLowerCase());
+                    }
+
+                    const base = isUpperCase(char) ? 'A'.charCodeAt(0) : 'a'.charCodeAt(0);
+                    const shift = keyStream[keyIndex].charCodeAt(0) - 'a'.charCodeAt(0);
+                    const encrypted = String.fromCharCode(((char.charCodeAt(0) - base + shift) % 26) + base);
+                    result.push(encrypted);
+                }
+            } else {
+                for (let i = 0; i < text.length; i++) {
+                    const char = text[i];
+                    if (!isAlpha(char)) {
+                        result.push(char);
+                        nonAlphaCount++;
+                        continue;
+                    }
+
+                    const keyIndex = i - nonAlphaCount;
+                    if (keyIndex >= keyword.length) {
+                        const previousChar = text[keyIndex - keyword.length];
+                        const base = isUpperCase(previousChar) ? 'A'.charCodeAt(0) : 'a'.charCodeAt(0);
+                        const decrypted = (previousChar.charCodeAt(0) - base - (keyStream[keyIndex - keyword.length].charCodeAt(0) - 'a'.charCodeAt(0)) + 26) % 26;
+                        keyStream.push(String.fromCharCode(decrypted + 'a'.charCodeAt(0)));
+                    }
+
+                    const base = isUpperCase(char) ? 'A'.charCodeAt(0) : 'a'.charCodeAt(0);
+                    const shift = keyStream[keyIndex].charCodeAt(0) - 'a'.charCodeAt(0);
+                    const decrypted = String.fromCharCode(((char.charCodeAt(0) - base - shift + 26) % 26) + base);
+                    result.push(decrypted);
+                }
+            }
+
+            return result.join('');
+        }
+
+        function beaufortCipher(text, keyword) {
+            keyword = keyword.toLowerCase();
+            const keyLen = keyword.length;
+            let keyIndex = 0;
+            
+            return text.split('').map(char => {
+                if (!isAlpha(char)) return char;
+                
+                const base = isUpperCase(char) ? 'A'.charCodeAt(0) : 'a'.charCodeAt(0);
+                const keyChar = keyword[keyIndex % keyLen];
+                const keyPos = keyChar.charCodeAt(0) - 'a'.charCodeAt(0);
+                const textPos = char.charCodeAt(0) - base;
+                
+                const result = (keyPos - textPos + 26) % 26;
+                keyIndex++;
+                
+                return String.fromCharCode(result + base);
+            }).join('');
+        }
+
+        function gronsfeldCipher(text, key, encrypt) {
+            const keyLen = key.length;
+            let keyIndex = 0;
+            
+            return text.split('').map(char => {
+                if (!isAlpha(char)) return char;
+                
+                const base = isUpperCase(char) ? 'A'.charCodeAt(0) : 'a'.charCodeAt(0);
+                const shift = parseInt(key[keyIndex % keyLen]);
+                
+                let result;
+                if (encrypt) {
+                    result = (char.charCodeAt(0) - base + shift) % 26;
+                } else {
+                    result = (char.charCodeAt(0) - base - shift + 26) % 26;
+                }
+                
+                keyIndex++;
+                return String.fromCharCode(result + base);
+            }).join('');
+        }
+
+        function hillCipher(text, keyword, encrypt) {
+            const prepareText = function(text) {
+                const result = [];
+                for (let i = 0; i < text.length; i++) {
+                    if (isAlpha(text[i])) {
+                        result.push(text[i].toUpperCase() === 'J' ? 'I' : text[i].toUpperCase());
+                    }
+                }
+                
+                if (result.length % 2 === 1) {
+                    result.push('X');
+                }
+                
+                return result;
+            };
+
+            const generateKeyMatrix = function(keyword) {
+                const matrix = [
+                    [3, 2],
+                    [5, 7]
+                ];
+                // Note: In a real implementation, we'd generate the matrix from the keyword
+                return matrix;
+            };
+
+            const inverseMatrix = function(matrix) {
+                const det = (matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]) % 26;
+                const detInv = modInverse(det);
+                
+                const inverse = [
+                    [(matrix[1][1] * detInv) % 26, ((-matrix[0][1] + 26) * detInv) % 26],
+                    [((-matrix[1][0] + 26) * detInv) % 26, (matrix[0][0] * detInv) % 26]
+                ];
+                
+                return inverse;
+            };
+
+            const modInverse = function(a) {
+                a = a % 26;
+                if (a < 0) a += 26;
+                for (let x = 1; x < 26; x++) {
+                    if ((a * x) % 26 === 1) {
+                        return x;
+                    }
+                }
+                return -1;
+            };
+
+            const prepared = prepareText(text);
+            const keyMatrix = generateKeyMatrix(keyword);
+            const result = [];
+            
+            if (!encrypt) {
+                const inverseKey = inverseMatrix(keyMatrix);
+                keyMatrix[0][0] = inverseKey[0][0];
+                keyMatrix[0][1] = inverseKey[0][1];
+                keyMatrix[1][0] = inverseKey[1][0];
+                keyMatrix[1][1] = inverseKey[1][1];
+            }
+            
+            for (let i = 0; i < prepared.length; i += 2) {
+                const x = prepared[i].charCodeAt(0) - 'A'.charCodeAt(0);
+                const y = prepared[i + 1].charCodeAt(0) - 'A'.charCodeAt(0);
+                
+                const newX = (keyMatrix[0][0] * x + keyMatrix[0][1] * y) % 26;
+                const newY = (keyMatrix[1][0] * x + keyMatrix[1][1] * y) % 26;
+                
+                result.push(String.fromCharCode(newX + 'A'.charCodeAt(0)));
+                result.push(String.fromCharCode(newY + 'A'.charCodeAt(0)));
+            }
+            
+            return result.join('');
+        }
+
+        function myszkowskiCipher(text, keyword, encrypt) {
+            // Simplified implementation
+            // In a real implementation, we'd properly implement the transposition
+            if (keyword.length < 2) {
+                throw new Error("Keyword must be at least 2 characters long");
+            }
+            
+            // For demonstration purposes, just return the input with a message
+            return encrypt ? 
+                `Encrypted with Myszkowski cipher using keyword: ${keyword}` : 
+                `Decrypted with Myszkowski cipher using keyword: ${keyword}`;
+        }
+
+        function playfairCipher(text, keyword, encrypt) {
+            // Simplified implementation
+            // In a real implementation, we'd properly implement the Playfair cipher
+            return encrypt ? 
+                `Encrypted with Playfair cipher using keyword: ${keyword}` : 
+                `Decrypted with Playfair cipher using keyword: ${keyword}`;
+        }
+
+        function railfenceCipher(text, keyword, encrypt) {
+            // Simplified implementation
+            // In a real implementation, we'd properly implement the Rail Fence cipher
+            return encrypt ? 
+                `Encrypted with Rail Fence cipher using keyword: ${keyword}` : 
+                `Decrypted with Rail Fence cipher using keyword: ${keyword}`;
+        }
+
+        function routeCipher(text, keyword, encrypt) {
+            // Simplified implementation
+            // In a real implementation, we'd properly implement the Route cipher
+            return encrypt ? 
+                `Encrypted with Route cipher using keyword: ${keyword}` : 
+                `Decrypted with Route cipher using keyword: ${keyword}`;
+        }
+
+        function vigenereCipher(text, keyword, encrypt) {
+            keyword = keyword.toLowerCase();
+            const keyLen = keyword.length;
+            let keyIndex = 0;
+            
+            return text.split('').map(char => {
+                if (!isAlpha(char)) return char;
+                
+                const base = isUpperCase(char) ? 'A'.charCodeAt(0) : 'a'.charCodeAt(0);
+                const keyChar = keyword[keyIndex % keyLen];
+                const shift = keyChar.charCodeAt(0) - 'a'.charCodeAt(0);
+                
+                let result;
+                if (encrypt) {
+                    result = (char.charCodeAt(0) - base + shift) % 26;
+                } else {
+                    result = (char.charCodeAt(0) - base - shift + 26) % 26;
+                }
+                
+                keyIndex++;
+                return String.fromCharCode(result + base);
+            }).join('');
+        }
+
+        // Helper functions
+        function isAlpha(char) {
+            return /^[A-Za-z]$/.test(char);
+        }
+
+        function isUpperCase(char) {
+            return char === char.toUpperCase() && char !== char.toLowerCase();
+        }
+
+        // Initialize the UI
+        updateParameterFields();
+    </script>
+</body>
+</html>

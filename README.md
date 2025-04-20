@@ -4,7 +4,7 @@ CipherX is a comprehensive implementation of 13 classical cryptographic algorith
 
  **Live Demo**: [Click here to view the site](https://kalyanikrishna465.github.io/Cryptographic-algorithms/)
 
-## 🧠 Available Ciphers
+## Available Ciphers
 
 | Cipher Name       | Description |
 |-------------------|-------------|
